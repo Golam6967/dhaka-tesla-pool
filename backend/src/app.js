@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const passengerRoutes = require('./routes/passenger.routes');
+const authRoutes = require('./routes/auth.routes');
 
 function createApp() {
   const app = express();
@@ -9,6 +11,19 @@ function createApp() {
 
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
+  });
+
+  app.use('/api/passengers', passengerRoutes);
+  app.use('/api/auth', authRoutes);
+
+  // Centralized error handler (PDF §14: business errors flow up from the
+  // service layer as typed HttpErrors instead of being handled ad hoc per route).
+  app.use((err, req, res, next) => {
+    const status = err.status || 500;
+    if (status === 500) {
+      console.error(err);
+    }
+    res.status(status).json({ error: err.message || 'Internal server error' });
   });
 
   return app;
