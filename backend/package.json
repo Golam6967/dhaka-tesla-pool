@@ -29,9 +29,12 @@
   },
   "jest": {
     "globalSetup": "./tests/globalSetup.js",
+    "setupFiles": ["./tests/setupEnv.js"],
+    "maxWorkers": 1,
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/tests/globalSetup.js",
+      "/tests/setupEnv.js",
       "/tests/helpers/"
     ]
   }
