@@ -7,5 +7,11 @@ const router = Router();
 
 router.post('/signup', driverController.signup);
 router.patch('/me/status', requireAuth, requireRole('driver'), driverController.setStatus);
+router.get(
+  '/me/available-requests',
+  requireAuth,
+  requireRole('driver'),
+  driverController.listAvailableRequests
+);
 
 module.exports = router;
