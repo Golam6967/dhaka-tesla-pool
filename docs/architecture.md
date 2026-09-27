@@ -268,6 +268,22 @@ matched into a pool with at least one other passenger, the pool service updates 
 and recomputed `total_fare_paisa`. A ride that is never pooled (solo Tesla trip) keeps the
 no-discount total. This is a documented assumption, not stated explicitly in the brief.
 
+**Retroactive discount on join:** when a pool's member count crosses from 1 to 2 (a second
+passenger joins a previously-solo pool), the *existing* member's fare — created earlier as a
+no-discount solo estimate — is recomputed and updated in the same transaction as the new
+member's join, not just the new joiner's. Both members' `fares` rows are updated together so the
+worked example (both Nusrat and Rafiq discounted once pooled) holds regardless of join order.
+
+**Matching rule enforcement:** a pool's first member sets its pickup-zone/destination-corridor
+"profile". Any ride request joining an already-non-empty pool is checked against that profile
+(same `pickup_zone_id`, same destination `corridor_id`) and rejected if it doesn't match — this
+is what makes the Section 6 matching rule an enforced invariant of pool-joining, not just a
+description of intended behavior.
+
+**Driver must be online:** a Tesla must have `status = 'online'` to accept a new pool match.
+Not stated explicitly in the brief; a defensible assumption since an offline driver shouldn't
+receive new work.
+
 **Payment:** `payment_method` on `FARES` is either `cash` or `teslapay_wallet` (a simulated
 in-app balance, no real payment gateway). `payment_status` tracks `pending` → `paid`.
 
