@@ -49,6 +49,14 @@ async function markCompletedWithClient(client, id) {
   return rows[0];
 }
 
+async function markCancelledWithClient(client, id) {
+  const { rows } = await client.query(
+    `UPDATE ride_requests SET status = 'cancelled', cancelled_at = now() WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return rows[0];
+}
+
 async function findById(id) {
   const { rows } = await pool.query('SELECT * FROM ride_requests WHERE id = $1', [id]);
   return rows[0] || null;
@@ -97,5 +105,6 @@ module.exports = {
   markDriverArrivedWithClient,
   markStartedWithClient,
   markCompletedWithClient,
+  markCancelledWithClient,
   toPublic,
 };
