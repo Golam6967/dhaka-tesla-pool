@@ -37,10 +37,10 @@ async function insertCorridor(name) {
   return rows[0].id;
 }
 
-async function insertZone({ name, corridorId }) {
+async function insertZone({ name, corridorId, lat = null, lng = null }) {
   const { rows } = await testPool.query(
-    `INSERT INTO zones (name, corridor_id) VALUES ($1, $2) RETURNING id`,
-    [name, corridorId]
+    `INSERT INTO zones (name, corridor_id, lat, lng) VALUES ($1, $2, $3, $4) RETURNING id`,
+    [name, corridorId, lat, lng]
   );
   return rows[0].id;
 }

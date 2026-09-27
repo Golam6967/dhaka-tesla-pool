@@ -1,7 +1,7 @@
 const { ValidationError } = require('../errors');
 
-function validateBody(schema, body) {
-  const result = schema.safeParse(body);
+function validateWith(schema, data) {
+  const result = schema.safeParse(data);
   if (!result.success) {
     const message = result.error.issues.map((issue) => issue.message).join(', ');
     throw new ValidationError(message);
@@ -9,4 +9,12 @@ function validateBody(schema, body) {
   return result.data;
 }
 
-module.exports = { validateBody };
+function validateBody(schema, body) {
+  return validateWith(schema, body);
+}
+
+function validateParams(schema, params) {
+  return validateWith(schema, params);
+}
+
+module.exports = { validateBody, validateParams };

@@ -251,6 +251,23 @@ smallest integer unit and only format to decimal at the display layer.
 Applied consistently via the `ZONES`/`CORRIDORS` tables — no special-casing Nusrat and Rafiq's
 route in code; any two requests satisfying the rule pool the same way.
 
+**Distance calculation:** `ride_requests` has no stored distance column — distance is computed
+from the pickup and destination zones' `lat`/`lng` (haversine great-circle distance, rounded to
+the nearest whole km) at fare-calculation time. This is arithmetic over already-stored static
+zone data, not live routing or a maps API call, so it doesn't conflict with the "no real
+routing" rule. Zone coordinates are illustrative (Section 8) and deliberately calibrated so the
+Banani→Mohakhali and Banani→Gulshan 1 distances round to exactly 4km and 3km, matching the
+worked example below.
+
+**Fare timing — estimate vs. final:** the pool discount is a real cost-sharing benefit that only
+exists once a ride is actually placed into a multi-passenger pool, so it cannot be known at
+ride-request time. A `fares` row is created when the ride request is made, with
+`pool_discount_paisa = 0` (an estimate: base + distance, no discount). If/when the ride is
+matched into a pool with at least one other passenger, the pool service updates that same row
+(one `fares` row per `ride_request_id`, per the schema's UNIQUE constraint) with the 20% discount
+and recomputed `total_fare_paisa`. A ride that is never pooled (solo Tesla trip) keeps the
+no-discount total. This is a documented assumption, not stated explicitly in the brief.
+
 **Payment:** `payment_method` on `FARES` is either `cash` or `teslapay_wallet` (a simulated
 in-app balance, no real payment gateway). `payment_status` tracks `pending` → `paid`.
 
@@ -371,3 +388,7 @@ history insert happen in the same transaction, per Section 5).
   real geography — consistent with Section 4's instruction not to fight map APIs.
 - A ride request can specify multiple seats (e.g. a passenger booking for themselves + one
   companion) but pooling logic still matches per-request, not per-seat.
+- Zone `lat`/`lng` values are illustrative and calibrated to produce round-number demo
+  distances (Section 3), not surveyed real-world coordinates.
+- The pool discount only applies once a ride is actually placed into a pool with at least one
+  other passenger; a solo (never-pooled) ride pays base + distance with no discount (Section 3).
