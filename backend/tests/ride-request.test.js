@@ -193,6 +193,7 @@ describe('ride requests', () => {
       expect(res.status).toBe(200);
       expect(res.body.rideRequests).toHaveLength(1);
       expect(res.body.rideRequests[0].destinationZoneId).toBe(mohakhali.id);
+      expect(res.body.rideRequests[0].fare.totalFarePaisa).toBe(9000);
     });
   });
 });

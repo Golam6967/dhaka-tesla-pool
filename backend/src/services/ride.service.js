@@ -100,7 +100,15 @@ async function getRideRequestForUser(rideRequestId, requestingUser) {
 
 async function listMyRideRequests(passengerId) {
   const rideRequests = await rideRequestRepository.findByPassengerId(passengerId);
-  return rideRequests.map(rideRequestRepository.toPublic);
+  return Promise.all(
+    rideRequests.map(async (rideRequest) => {
+      const fare = await fareRepository.findByRideRequestId(rideRequest.id);
+      return {
+        ...rideRequestRepository.toPublic(rideRequest),
+        fare: fare ? fareRepository.toPublic(fare) : null,
+      };
+    })
+  );
 }
 
 async function assertDriverOwnsRide(client, rideRequest, driverId) {
