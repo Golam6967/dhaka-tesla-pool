@@ -19,6 +19,15 @@ async function create({ name, phone, passwordHash, role }) {
   return rows[0];
 }
 
+async function createWithClient(client, { name, phone, passwordHash, role }) {
+  const { rows } = await client.query(
+    `INSERT INTO users (name, phone, password_hash, role)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [name, phone, passwordHash, role]
+  );
+  return rows[0];
+}
+
 function toPublicUser(user) {
   return {
     id: user.id,
@@ -29,4 +38,4 @@ function toPublicUser(user) {
   };
 }
 
-module.exports = { findByPhone, findById, create, toPublicUser };
+module.exports = { findByPhone, findById, create, createWithClient, toPublicUser };
