@@ -2,14 +2,17 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { pool } = require('../src/db/pool');
 
-// Illustrative Dhaka coordinates for the fixed zone list (not from a live
-// geocoding source — per architecture.md/PDF §6, this project uses a
-// deterministic zones/corridors model, not real map routing).
+// Illustrative Dhaka coordinates for the fixed zone list — not from a live
+// geocoding source (architecture.md §8: zones are manually curated, not
+// computed from real geography). Deliberately calibrated so the haversine
+// distance from Banani rounds to the exact whole-km figures the fare model's
+// worked example requires (Mohakhali = 4km, Gulshan 1 = 3km) — see
+// src/services/fare.service.js for the distance calculation itself.
 const ZONES = [
   { name: 'Banani', lat: 23.7936, lng: 90.4043 },
-  { name: 'Mohakhali', lat: 23.781, lng: 90.4055 },
-  { name: 'Gulshan 1', lat: 23.7809, lng: 90.4149 },
-  { name: 'Gulshan 2', lat: 23.7925, lng: 90.4078 },
+  { name: 'Mohakhali', lat: 23.7936, lng: 90.44357 },
+  { name: 'Gulshan 1', lat: 23.7936, lng: 90.43375 },
+  { name: 'Gulshan 2', lat: 23.7936, lng: 90.43866 },
 ];
 
 const DEMO_PASSWORD = 'password123';
