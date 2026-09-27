@@ -73,11 +73,21 @@ async function getRideRequestForUser(rideRequestId, requestingUser) {
     throw new NotFoundError('Ride request not found');
   }
 
-  // A passenger may only view their own ride (PDF §12). Driver-side ownership
-  // (viewing rides on a pool they're driving) is added in feature/authorization
-  // once driver-flow exists.
+  // A passenger may only view their own ride (PDF §12).
   if (requestingUser.role === 'passenger' && rideRequest.passenger_id !== requestingUser.id) {
     throw new ForbiddenError('You cannot view another passenger\'s ride');
+  }
+
+  // A driver may only view a ride request that's actually part of a pool on
+  // their own Tesla — not any ride request system-wide (PDF §12: ownership,
+  // not role alone). An unmatched request has no pool_id yet; drivers see
+  // those via the available-requests listing instead.
+  if (requestingUser.role === 'driver') {
+    const tesla = await teslaRepository.findByDriverId(requestingUser.id);
+    const poolRow = rideRequest.pool_id ? await poolRepository.findById(rideRequest.pool_id) : null;
+    if (!tesla || !poolRow || poolRow.tesla_id !== tesla.id) {
+      throw new ForbiddenError('You cannot view a ride request that is not on your own Tesla');
+    }
   }
 
   const fare = await fareRepository.findByRideRequestId(rideRequestId);
