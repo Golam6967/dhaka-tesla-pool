@@ -6,6 +6,7 @@ const poolRepository = require('../repositories/pool.repository');
 const poolMemberRepository = require('../repositories/poolMember.repository');
 const rideRequestRepository = require('../repositories/rideRequest.repository');
 const zoneRepository = require('../repositories/zone.repository');
+const fareRepository = require('../repositories/fare.repository');
 const { signToken } = require('../config/jwt');
 const { ConflictError, NotFoundError } = require('../errors');
 
@@ -104,4 +105,36 @@ async function listAvailableRequests(driverId) {
   return compatible;
 }
 
-module.exports = { signup, setStatus, listAvailableRequests };
+// So the driver UI can show who's in their pool and offer arrive/start/
+// complete actions per passenger (PDF §3: "see passengers/seats").
+async function getActivePool(driverId) {
+  const tesla = await teslaRepository.findByDriverId(driverId);
+  if (!tesla) {
+    throw new NotFoundError('No Tesla is registered for this driver');
+  }
+
+  const poolRow = await poolRepository.findActiveOrFormingByTeslaId(tesla.id);
+  if (!poolRow) {
+    return { tesla: teslaRepository.toPublicTesla(tesla), pool: null, members: [] };
+  }
+
+  const memberRows = await poolMemberRepository.findMembersWithRideDetails(pool, poolRow.id);
+  const members = await Promise.all(
+    memberRows.map(async (member) => {
+      const rideRequest = await rideRequestRepository.findById(member.ride_request_id);
+      const fare = await fareRepository.findByRideRequestId(member.ride_request_id);
+      return {
+        rideRequest: rideRequestRepository.toPublic(rideRequest),
+        fare: fare ? fareRepository.toPublic(fare) : null,
+      };
+    })
+  );
+
+  return {
+    tesla: teslaRepository.toPublicTesla(tesla),
+    pool: poolRepository.toPublic(poolRow),
+    members,
+  };
+}
+
+module.exports = { signup, setStatus, listAvailableRequests, getActivePool };

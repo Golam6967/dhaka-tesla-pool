@@ -134,6 +134,51 @@ describe('driver flow', () => {
     });
   });
 
+  describe('GET /api/drivers/me/active-pool', () => {
+    it('returns no pool for a driver with no matches yet', async () => {
+      const driver = await signupDriver();
+
+      const res = await request(app)
+        .get('/api/drivers/me/active-pool')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pool).toBeNull();
+      expect(res.body.members).toEqual([]);
+    });
+
+    it('returns pool members with their ride status and fare after a match', async () => {
+      const driver = await signupDriver();
+      await goOnline(driver.token);
+      const nusrat = await signupPassenger();
+      const rideRequest = await createRideRequest(nusrat.token, {
+        pickupZoneId: banani.id,
+        destinationZoneId: mohakhali.id,
+      });
+      await accept(driver.token, rideRequest.id);
+
+      const res = await request(app)
+        .get('/api/drivers/me/active-pool')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pool.seatsOccupied).toBe(1);
+      expect(res.body.members).toHaveLength(1);
+      expect(res.body.members[0].rideRequest.status).toBe('matched');
+      expect(res.body.members[0].fare.totalFarePaisa).toBe(9000);
+    });
+
+    it('rejects a passenger token', async () => {
+      const nusrat = await signupPassenger();
+
+      const res = await request(app)
+        .get('/api/drivers/me/active-pool')
+        .set('Authorization', `Bearer ${nusrat.token}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
+
   describe('ride timeline: arrive -> start -> complete', () => {
     it('runs the full happy path and activates then completes the pool', async () => {
       const driver = await signupDriver();

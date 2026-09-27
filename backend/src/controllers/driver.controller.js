@@ -29,4 +29,11 @@ function listAvailableRequests(req, res, next) {
     .catch(next);
 }
 
-module.exports = { signup, setStatus, listAvailableRequests };
+function getActivePool(req, res, next) {
+  driverService
+    .getActivePool(req.user.id)
+    .then((result) => res.status(200).json(result))
+    .catch(next);
+}
+
+module.exports = { signup, setStatus, listAvailableRequests, getActivePool };
