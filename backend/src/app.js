@@ -3,6 +3,7 @@ const cors = require('cors');
 const passengerRoutes = require('./routes/passenger.routes');
 const driverRoutes = require('./routes/driver.routes');
 const authRoutes = require('./routes/auth.routes');
+const rideRequestRoutes = require('./routes/rideRequest.routes');
 
 function createApp() {
   const app = express();
@@ -17,6 +18,7 @@ function createApp() {
   app.use('/api/passengers', passengerRoutes);
   app.use('/api/drivers', driverRoutes);
   app.use('/api/auth', authRoutes);
+  app.use('/api/ride-requests', rideRequestRoutes);
 
   // Centralized error handler (PDF §14: business errors flow up from the
   // service layer as typed HttpErrors instead of being handled ad hoc per route).
