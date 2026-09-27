@@ -134,6 +134,51 @@ describe('driver flow', () => {
     });
   });
 
+  describe('GET /api/drivers/me/active-pool', () => {
+    it('returns no pool for a driver with no matches yet', async () => {
+      const driver = await signupDriver();
+
+      const res = await request(app)
+        .get('/api/drivers/me/active-pool')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pool).toBeNull();
+      expect(res.body.members).toEqual([]);
+    });
+
+    it('returns pool members with their ride status and fare after a match', async () => {
+      const driver = await signupDriver();
+      await goOnline(driver.token);
+      const nusrat = await signupPassenger();
+      const rideRequest = await createRideRequest(nusrat.token, {
+        pickupZoneId: banani.id,
+        destinationZoneId: mohakhali.id,
+      });
+      await accept(driver.token, rideRequest.id);
+
+      const res = await request(app)
+        .get('/api/drivers/me/active-pool')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pool.seatsOccupied).toBe(1);
+      expect(res.body.members).toHaveLength(1);
+      expect(res.body.members[0].rideRequest.status).toBe('matched');
+      expect(res.body.members[0].fare.totalFarePaisa).toBe(9000);
+    });
+
+    it('rejects a passenger token', async () => {
+      const nusrat = await signupPassenger();
+
+      const res = await request(app)
+        .get('/api/drivers/me/active-pool')
+        .set('Authorization', `Bearer ${nusrat.token}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
+
   describe('ride timeline: arrive -> start -> complete', () => {
     it('runs the full happy path and activates then completes the pool', async () => {
       const driver = await signupDriver();
@@ -254,6 +299,60 @@ describe('driver flow', () => {
         .post(`/api/ride-requests/${rideRequest.id}/arrive`)
         .set('Authorization', `Bearer ${nusrat.token}`)
         .send();
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('GET /api/drivers/me/history', () => {
+    it('lists a completed pool once every member has finished', async () => {
+      const driver = await signupDriver();
+      await goOnline(driver.token);
+      const nusrat = await signupPassenger();
+      const rideRequest = await createRideRequest(nusrat.token, {
+        pickupZoneId: banani.id,
+        destinationZoneId: mohakhali.id,
+      });
+      await accept(driver.token, rideRequest.id);
+      await driverAction(driver.token, rideRequest.id, 'arrive');
+      await driverAction(driver.token, rideRequest.id, 'start');
+      await driverAction(driver.token, rideRequest.id, 'complete');
+
+      const res = await request(app)
+        .get('/api/drivers/me/history')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pools).toHaveLength(1);
+      expect(res.body.pools[0].pool.status).toBe('completed');
+      expect(res.body.pools[0].members).toHaveLength(1);
+      expect(res.body.pools[0].members[0].rideRequest.status).toBe('completed');
+    });
+
+    it('does not include the current forming/active pool', async () => {
+      const driver = await signupDriver();
+      await goOnline(driver.token);
+      const nusrat = await signupPassenger();
+      const rideRequest = await createRideRequest(nusrat.token, {
+        pickupZoneId: banani.id,
+        destinationZoneId: mohakhali.id,
+      });
+      await accept(driver.token, rideRequest.id);
+
+      const res = await request(app)
+        .get('/api/drivers/me/history')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pools).toEqual([]);
+    });
+
+    it('rejects a passenger token', async () => {
+      const nusrat = await signupPassenger();
+
+      const res = await request(app)
+        .get('/api/drivers/me/history')
+        .set('Authorization', `Bearer ${nusrat.token}`);
 
       expect(res.status).toBe(403);
     });
