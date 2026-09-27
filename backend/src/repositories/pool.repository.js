@@ -1,3 +1,18 @@
+const { pool: dbPool } = require('../db/pool');
+
+async function findActiveOrFormingByTeslaId(teslaId) {
+  const { rows } = await dbPool.query(
+    `SELECT * FROM pools WHERE tesla_id = $1 AND status IN ('forming', 'active')`,
+    [teslaId]
+  );
+  return rows[0] || null;
+}
+
+async function findById(poolId) {
+  const { rows } = await dbPool.query('SELECT * FROM pools WHERE id = $1', [poolId]);
+  return rows[0] || null;
+}
+
 // Locks any existing forming/active pool for this Tesla for the duration of
 // the caller's transaction. This single statement is what serializes
 // concurrent seat claims against the same pool (architecture.md §4a).
@@ -52,6 +67,8 @@ function toPublic(pool) {
 }
 
 module.exports = {
+  findActiveOrFormingByTeslaId,
+  findById,
   findLockedActiveOrFormingByTeslaId,
   findByIdForUpdate,
   createForming,

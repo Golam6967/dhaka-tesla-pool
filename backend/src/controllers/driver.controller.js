@@ -22,4 +22,11 @@ function setStatus(req, res, next) {
     .catch(next);
 }
 
-module.exports = { signup, setStatus };
+function listAvailableRequests(req, res, next) {
+  driverService
+    .listAvailableRequests(req.user.id)
+    .then((rideRequests) => res.status(200).json({ rideRequests }))
+    .catch(next);
+}
+
+module.exports = { signup, setStatus, listAvailableRequests };

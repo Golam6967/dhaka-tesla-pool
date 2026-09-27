@@ -29,4 +29,34 @@ function listMine(req, res, next) {
     .catch(next);
 }
 
-module.exports = { create, getById, listMine };
+function arrive(req, res, next) {
+  Promise.resolve()
+    .then(() => {
+      const { id } = validateParams(rideRequestIdParamsSchema, req.params);
+      return rideService.markDriverArrived({ rideRequestId: id, driverId: req.user.id });
+    })
+    .then((rideRequest) => res.status(200).json({ rideRequest }))
+    .catch(next);
+}
+
+function start(req, res, next) {
+  Promise.resolve()
+    .then(() => {
+      const { id } = validateParams(rideRequestIdParamsSchema, req.params);
+      return rideService.markStarted({ rideRequestId: id, driverId: req.user.id });
+    })
+    .then((rideRequest) => res.status(200).json({ rideRequest }))
+    .catch(next);
+}
+
+function complete(req, res, next) {
+  Promise.resolve()
+    .then(() => {
+      const { id } = validateParams(rideRequestIdParamsSchema, req.params);
+      return rideService.markCompleted({ rideRequestId: id, driverId: req.user.id });
+    })
+    .then((rideRequest) => res.status(200).json({ rideRequest }))
+    .catch(next);
+}
+
+module.exports = { create, getById, listMine, arrive, start, complete };

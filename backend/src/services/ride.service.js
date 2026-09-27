@@ -3,8 +3,15 @@ const zoneRepository = require('../repositories/zone.repository');
 const rideRequestRepository = require('../repositories/rideRequest.repository');
 const fareRepository = require('../repositories/fare.repository');
 const rideStatusHistoryRepository = require('../repositories/rideStatusHistory.repository');
+const teslaRepository = require('../repositories/tesla.repository');
+const poolRepository = require('../repositories/pool.repository');
+const poolMemberRepository = require('../repositories/poolMember.repository');
+const poolStatusHistoryRepository = require('../repositories/poolStatusHistory.repository');
 const fareService = require('../services/fare.service');
+const { assertValidTransition } = require('./rideStateMachine');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../errors');
+
+const TERMINAL_STATUSES = ['completed', 'cancelled'];
 
 async function createRideRequest({ passengerId, pickupZoneId, destinationZoneId, seatsRequested }) {
   const [pickupZone, destinationZone] = await Promise.all([
@@ -86,4 +93,114 @@ async function listMyRideRequests(passengerId) {
   return rideRequests.map(rideRequestRepository.toPublic);
 }
 
-module.exports = { createRideRequest, getRideRequestForUser, listMyRideRequests };
+async function assertDriverOwnsRide(client, rideRequest, driverId) {
+  if (!rideRequest.pool_id) {
+    throw new ForbiddenError('This ride request has not been matched to a pool yet');
+  }
+  const poolRow = await poolRepository.findByIdForUpdate(client, rideRequest.pool_id);
+  const tesla = await teslaRepository.findByDriverIdWithClient(client, driverId);
+  if (!tesla || poolRow.tesla_id !== tesla.id) {
+    throw new ForbiddenError("You cannot operate on another driver's ride");
+  }
+  return poolRow;
+}
+
+async function performDriverTransition({ rideRequestId, driverId, toStatus, markFn, onAfterUpdate }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const rideRequest = await rideRequestRepository.findByIdForUpdate(client, rideRequestId);
+    if (!rideRequest) {
+      throw new NotFoundError('Ride request not found');
+    }
+
+    const poolRow = await assertDriverOwnsRide(client, rideRequest, driverId);
+    assertValidTransition(rideRequest.status, toStatus);
+
+    const updated = await markFn(client, rideRequestId);
+    await rideStatusHistoryRepository.insertWithClient(client, {
+      rideRequestId,
+      fromStatus: rideRequest.status,
+      toStatus,
+    });
+
+    if (onAfterUpdate) {
+      await onAfterUpdate(client, poolRow);
+    }
+
+    await client.query('COMMIT');
+    return rideRequestRepository.toPublic(updated);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function markDriverArrived({ rideRequestId, driverId }) {
+  return performDriverTransition({
+    rideRequestId,
+    driverId,
+    toStatus: 'driver_arrived',
+    markFn: rideRequestRepository.markDriverArrivedWithClient,
+  });
+}
+
+async function markStarted({ rideRequestId, driverId }) {
+  return performDriverTransition({
+    rideRequestId,
+    driverId,
+    toStatus: 'started',
+    markFn: rideRequestRepository.markStartedWithClient,
+    // architecture.md: pool moves forming -> active the first time any
+    // member of it actually starts.
+    onAfterUpdate: async (client, poolRow) => {
+      if (poolRow.status === 'forming') {
+        await poolRepository.updateStatus(client, poolRow.id, 'active');
+        await poolStatusHistoryRepository.insert(client, {
+          poolId: poolRow.id,
+          seatsOccupiedBefore: poolRow.seats_occupied,
+          seatsOccupiedAfter: poolRow.seats_occupied,
+          event: 'status_changed',
+        });
+      }
+    },
+  });
+}
+
+async function markCompleted({ rideRequestId, driverId }) {
+  return performDriverTransition({
+    rideRequestId,
+    driverId,
+    toStatus: 'completed',
+    markFn: rideRequestRepository.markCompletedWithClient,
+    // architecture.md: pool moves to completed once every member has
+    // reached a terminal ride status.
+    onAfterUpdate: async (client, poolRow) => {
+      // Reads this member's own just-written 'completed' status too, since
+      // it's the same transaction/client (read-your-own-writes).
+      const siblingStatuses = await poolMemberRepository.findSiblingStatuses(client, poolRow.id);
+      const allTerminal = siblingStatuses.every((status) => TERMINAL_STATUSES.includes(status));
+      if (allTerminal && poolRow.status !== 'completed') {
+        await poolRepository.updateStatus(client, poolRow.id, 'completed');
+        await poolStatusHistoryRepository.insert(client, {
+          poolId: poolRow.id,
+          seatsOccupiedBefore: poolRow.seats_occupied,
+          seatsOccupiedAfter: poolRow.seats_occupied,
+          event: 'status_changed',
+        });
+      }
+    },
+  });
+}
+
+module.exports = {
+  createRideRequest,
+  getRideRequestForUser,
+  listMyRideRequests,
+  markDriverArrived,
+  markStarted,
+  markCompleted,
+};
