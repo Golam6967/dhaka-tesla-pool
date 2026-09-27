@@ -284,6 +284,16 @@ description of intended behavior.
 Not stated explicitly in the brief; a defensible assumption since an offline driver shouldn't
 receive new work.
 
+**Per-ride-request driver actions, pool status as a side effect:** `ride_requests` has its own
+`arrived_at`/`started_at`/`completed_at` per row, and pooled passengers can share a pickup zone
+while having different destinations (Rafiq drops at Gulshan 1 before Nusrat at Mohakhali), so
+`driver_arrived`/`started`/`completed` are driver actions scoped to one ride request at a time,
+not one bulk pool-wide action. The driver calls the same action once per passenger. As a side
+effect: `pools.status` moves `forming` → `active` the first time any member of that pool is
+marked `started`, and `active` → `completed` once every member of the pool has reached a
+terminal ride status (`completed` or `cancelled`) — giving the pool status column real meaning
+instead of staying at `forming` forever.
+
 **Payment:** `payment_method` on `FARES` is either `cash` or `teslapay_wallet` (a simulated
 in-app balance, no real payment gateway). `payment_status` tracks `pending` → `paid`.
 
