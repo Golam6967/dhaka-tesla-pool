@@ -407,6 +407,14 @@ history insert happen in the same transaction, per Section 5).
   audit trail shows the ride and the pool's occupancy change together.
 - A cancellation attempt on a ride that's already `STARTED`, `COMPLETED`, or `CANCELLED` is
   rejected — same allow-list mechanism as Section 6.
+- **Retroactive discount removal:** symmetric to Section 3's "retroactive discount on join" — if
+  a cancellation drops a pool from 2 members to 1, the remaining passenger's fare is recomputed
+  back to the no-discount solo rate in the same transaction. A pool discount reflects real cost
+  sharing with another rider; once that rider is gone, so is the benefit.
+- **Auto-cancelling an emptied pool:** if a cancellation removes a pool's last remaining member,
+  the pool itself transitions to `cancelled` (with a `pool_status_history` `cancelled` event).
+  Without this, an empty `forming` pool would sit forever and permanently block the Tesla from
+  ever getting a new pool via the `one_active_pool_per_tesla` partial unique index.
 
 ## 8. Open assumptions (Section 17)
 
