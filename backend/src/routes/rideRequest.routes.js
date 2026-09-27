@@ -11,5 +11,6 @@ router.get('/:id', requireAuth, rideRequestController.getById);
 router.post('/:id/arrive', requireAuth, requireRole('driver'), rideRequestController.arrive);
 router.post('/:id/start', requireAuth, requireRole('driver'), rideRequestController.start);
 router.post('/:id/complete', requireAuth, requireRole('driver'), rideRequestController.complete);
+router.post('/:id/cancel', requireAuth, requireRole('passenger'), rideRequestController.cancel);
 
 module.exports = router;

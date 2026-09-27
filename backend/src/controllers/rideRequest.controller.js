@@ -59,4 +59,14 @@ function complete(req, res, next) {
     .catch(next);
 }
 
-module.exports = { create, getById, listMine, arrive, start, complete };
+function cancel(req, res, next) {
+  Promise.resolve()
+    .then(() => {
+      const { id } = validateParams(rideRequestIdParamsSchema, req.params);
+      return rideService.cancelRideRequest({ rideRequestId: id, passengerId: req.user.id });
+    })
+    .then((rideRequest) => res.status(200).json({ rideRequest }))
+    .catch(next);
+}
+
+module.exports = { create, getById, listMine, arrive, start, complete, cancel };

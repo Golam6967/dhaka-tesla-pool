@@ -29,4 +29,13 @@ async function findSiblingStatuses(client, poolId) {
   return rows.map((row) => row.status);
 }
 
-module.exports = { create, findMembersWithRideDetails, findSiblingStatuses };
+async function deleteByRideRequestId(client, rideRequestId) {
+  await client.query('DELETE FROM pool_members WHERE ride_request_id = $1', [rideRequestId]);
+}
+
+module.exports = {
+  create,
+  findMembersWithRideDetails,
+  findSiblingStatuses,
+  deleteByRideRequestId,
+};

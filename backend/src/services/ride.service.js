@@ -196,6 +196,79 @@ async function markCompleted({ rideRequestId, driverId }) {
   });
 }
 
+async function cancelRideRequest({ rideRequestId, passengerId }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const rideRequest = await rideRequestRepository.findByIdForUpdate(client, rideRequestId);
+    if (!rideRequest) {
+      throw new NotFoundError('Ride request not found');
+    }
+    if (rideRequest.passenger_id !== passengerId) {
+      throw new ForbiddenError('You cannot cancel another passenger\'s ride');
+    }
+    assertValidTransition(rideRequest.status, 'cancelled');
+
+    if (rideRequest.pool_id) {
+      const poolRow = await poolRepository.findByIdForUpdate(client, rideRequest.pool_id);
+      const newSeatsOccupied = poolRow.seats_occupied - rideRequest.seats_requested;
+
+      await poolMemberRepository.deleteByRideRequestId(client, rideRequestId);
+      await poolRepository.updateSeatsOccupied(client, poolRow.id, newSeatsOccupied);
+      await poolStatusHistoryRepository.insert(client, {
+        poolId: poolRow.id,
+        seatsOccupiedBefore: poolRow.seats_occupied,
+        seatsOccupiedAfter: newSeatsOccupied,
+        event: 'member_left',
+      });
+
+      const remainingMembers = await poolMemberRepository.findMembersWithRideDetails(client, poolRow.id);
+
+      if (remainingMembers.length === 0) {
+        // architecture.md §7: an emptied pool is cancelled outright so the
+        // one_active_pool_per_tesla index doesn't permanently block this
+        // Tesla from ever getting a new pool.
+        await poolRepository.updateStatus(client, poolRow.id, 'cancelled');
+        await poolStatusHistoryRepository.insert(client, {
+          poolId: poolRow.id,
+          seatsOccupiedBefore: newSeatsOccupied,
+          seatsOccupiedAfter: newSeatsOccupied,
+          event: 'cancelled',
+        });
+      } else if (remainingMembers.length === 1) {
+        // architecture.md §7: retroactive discount removal — the sole
+        // remaining passenger no longer shares the ride with anyone.
+        const remaining = remainingMembers[0];
+        const [pickupZone, destinationZone] = await Promise.all([
+          zoneRepository.findById(remaining.pickup_zone_id),
+          zoneRepository.findById(remaining.destination_zone_id),
+        ]);
+        const fare = fareService.calculateFare({ pickupZone, destinationZone, isPooled: false });
+        await fareRepository.updateDiscountWithClient(client, remaining.ride_request_id, {
+          poolDiscountPaisa: fare.poolDiscountPaisa,
+          totalFarePaisa: fare.totalFarePaisa,
+        });
+      }
+    }
+
+    const updated = await rideRequestRepository.markCancelledWithClient(client, rideRequestId);
+    await rideStatusHistoryRepository.insertWithClient(client, {
+      rideRequestId,
+      fromStatus: rideRequest.status,
+      toStatus: 'cancelled',
+    });
+
+    await client.query('COMMIT');
+    return rideRequestRepository.toPublic(updated);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   createRideRequest,
   getRideRequestForUser,
@@ -203,4 +276,5 @@ module.exports = {
   markDriverArrived,
   markStarted,
   markCompleted,
+  cancelRideRequest,
 };
