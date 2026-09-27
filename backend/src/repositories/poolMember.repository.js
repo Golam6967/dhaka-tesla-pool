@@ -19,4 +19,14 @@ async function findMembersWithRideDetails(client, poolId) {
   return rows;
 }
 
-module.exports = { create, findMembersWithRideDetails };
+async function findSiblingStatuses(client, poolId) {
+  const { rows } = await client.query(
+    `SELECT rr.status FROM pool_members pm
+     JOIN ride_requests rr ON rr.id = pm.ride_request_id
+     WHERE pm.pool_id = $1`,
+    [poolId]
+  );
+  return rows.map((row) => row.status);
+}
+
+module.exports = { create, findMembersWithRideDetails, findSiblingStatuses };

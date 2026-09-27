@@ -25,9 +25,40 @@ async function findByIdForUpdate(client, id) {
   return rows[0] || null;
 }
 
+async function markDriverArrivedWithClient(client, id) {
+  const { rows } = await client.query(
+    `UPDATE ride_requests SET status = 'driver_arrived', arrived_at = now() WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return rows[0];
+}
+
+async function markStartedWithClient(client, id) {
+  const { rows } = await client.query(
+    `UPDATE ride_requests SET status = 'started', started_at = now() WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return rows[0];
+}
+
+async function markCompletedWithClient(client, id) {
+  const { rows } = await client.query(
+    `UPDATE ride_requests SET status = 'completed', completed_at = now() WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return rows[0];
+}
+
 async function findById(id) {
   const { rows } = await pool.query('SELECT * FROM ride_requests WHERE id = $1', [id]);
   return rows[0] || null;
+}
+
+async function findPending() {
+  const { rows } = await pool.query(
+    `SELECT * FROM ride_requests WHERE status = 'requested' ORDER BY requested_at ASC`
+  );
+  return rows;
 }
 
 async function findByPassengerId(passengerId) {
@@ -60,7 +91,11 @@ module.exports = {
   createWithClient,
   findById,
   findByIdForUpdate,
+  findPending,
   findByPassengerId,
   markMatchedWithClient,
+  markDriverArrivedWithClient,
+  markStartedWithClient,
+  markCompletedWithClient,
   toPublic,
 };

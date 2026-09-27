@@ -20,6 +20,19 @@ async function createForming(client, teslaId) {
   return rows[0];
 }
 
+async function findByIdForUpdate(client, poolId) {
+  const { rows } = await client.query('SELECT * FROM pools WHERE id = $1 FOR UPDATE', [poolId]);
+  return rows[0] || null;
+}
+
+async function updateStatus(client, poolId, status) {
+  const { rows } = await client.query('UPDATE pools SET status = $1 WHERE id = $2 RETURNING *', [
+    status,
+    poolId,
+  ]);
+  return rows[0];
+}
+
 async function updateSeatsOccupied(client, poolId, seatsOccupied) {
   const { rows } = await client.query(
     `UPDATE pools SET seats_occupied = $1 WHERE id = $2 RETURNING *`,
@@ -40,7 +53,9 @@ function toPublic(pool) {
 
 module.exports = {
   findLockedActiveOrFormingByTeslaId,
+  findByIdForUpdate,
   createForming,
   updateSeatsOccupied,
+  updateStatus,
   toPublic,
 };
