@@ -36,4 +36,11 @@ function getActivePool(req, res, next) {
     .catch(next);
 }
 
-module.exports = { signup, setStatus, listAvailableRequests, getActivePool };
+function getHistory(req, res, next) {
+  driverService
+    .getHistory(req.user.id)
+    .then((result) => res.status(200).json(result))
+    .catch(next);
+}
+
+module.exports = { signup, setStatus, listAvailableRequests, getActivePool, getHistory };

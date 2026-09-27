@@ -14,5 +14,6 @@ router.get(
   driverController.listAvailableRequests
 );
 router.get('/me/active-pool', requireAuth, requireRole('driver'), driverController.getActivePool);
+router.get('/me/history', requireAuth, requireRole('driver'), driverController.getHistory);
 
 module.exports = router;

@@ -13,6 +13,15 @@ async function findById(poolId) {
   return rows[0] || null;
 }
 
+async function findPastByTeslaId(teslaId) {
+  const { rows } = await dbPool.query(
+    `SELECT * FROM pools WHERE tesla_id = $1 AND status IN ('completed', 'cancelled')
+     ORDER BY created_at DESC`,
+    [teslaId]
+  );
+  return rows;
+}
+
 // Locks any existing forming/active pool for this Tesla for the duration of
 // the caller's transaction. This single statement is what serializes
 // concurrent seat claims against the same pool (architecture.md §4a).
@@ -69,6 +78,7 @@ function toPublic(pool) {
 module.exports = {
   findActiveOrFormingByTeslaId,
   findById,
+  findPastByTeslaId,
   findLockedActiveOrFormingByTeslaId,
   findByIdForUpdate,
   createForming,

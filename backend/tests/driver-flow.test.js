@@ -303,4 +303,58 @@ describe('driver flow', () => {
       expect(res.status).toBe(403);
     });
   });
+
+  describe('GET /api/drivers/me/history', () => {
+    it('lists a completed pool once every member has finished', async () => {
+      const driver = await signupDriver();
+      await goOnline(driver.token);
+      const nusrat = await signupPassenger();
+      const rideRequest = await createRideRequest(nusrat.token, {
+        pickupZoneId: banani.id,
+        destinationZoneId: mohakhali.id,
+      });
+      await accept(driver.token, rideRequest.id);
+      await driverAction(driver.token, rideRequest.id, 'arrive');
+      await driverAction(driver.token, rideRequest.id, 'start');
+      await driverAction(driver.token, rideRequest.id, 'complete');
+
+      const res = await request(app)
+        .get('/api/drivers/me/history')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pools).toHaveLength(1);
+      expect(res.body.pools[0].pool.status).toBe('completed');
+      expect(res.body.pools[0].members).toHaveLength(1);
+      expect(res.body.pools[0].members[0].rideRequest.status).toBe('completed');
+    });
+
+    it('does not include the current forming/active pool', async () => {
+      const driver = await signupDriver();
+      await goOnline(driver.token);
+      const nusrat = await signupPassenger();
+      const rideRequest = await createRideRequest(nusrat.token, {
+        pickupZoneId: banani.id,
+        destinationZoneId: mohakhali.id,
+      });
+      await accept(driver.token, rideRequest.id);
+
+      const res = await request(app)
+        .get('/api/drivers/me/history')
+        .set('Authorization', `Bearer ${driver.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.pools).toEqual([]);
+    });
+
+    it('rejects a passenger token', async () => {
+      const nusrat = await signupPassenger();
+
+      const res = await request(app)
+        .get('/api/drivers/me/history')
+        .set('Authorization', `Bearer ${nusrat.token}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
 });
