@@ -9,6 +9,22 @@ async function createWithClient(client, { passengerId, pickupZoneId, destination
   return rows[0];
 }
 
+async function markMatchedWithClient(client, rideRequestId, poolId) {
+  const { rows } = await client.query(
+    `UPDATE ride_requests SET status = 'matched', pool_id = $1, matched_at = now()
+     WHERE id = $2 RETURNING *`,
+    [poolId, rideRequestId]
+  );
+  return rows[0];
+}
+
+// Row-level lock so a ride request cannot be matched twice by two concurrent
+// join attempts (mirrors the pool row lock in pool.repository.js).
+async function findByIdForUpdate(client, id) {
+  const { rows } = await client.query('SELECT * FROM ride_requests WHERE id = $1 FOR UPDATE', [id]);
+  return rows[0] || null;
+}
+
 async function findById(id) {
   const { rows } = await pool.query('SELECT * FROM ride_requests WHERE id = $1', [id]);
   return rows[0] || null;
@@ -40,4 +56,11 @@ function toPublic(rideRequest) {
   };
 }
 
-module.exports = { createWithClient, findById, findByPassengerId, toPublic };
+module.exports = {
+  createWithClient,
+  findById,
+  findByIdForUpdate,
+  findByPassengerId,
+  markMatchedWithClient,
+  toPublic,
+};

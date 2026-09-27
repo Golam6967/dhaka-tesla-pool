@@ -12,6 +12,21 @@ async function createWithClient(
   return rows[0];
 }
 
+async function updateDiscountWithClient(client, rideRequestId, { poolDiscountPaisa, totalFarePaisa }) {
+  const { rows } = await client.query(
+    `UPDATE fares SET pool_discount_paisa = $1, total_fare_paisa = $2 WHERE ride_request_id = $3 RETURNING *`,
+    [poolDiscountPaisa, totalFarePaisa, rideRequestId]
+  );
+  return rows[0];
+}
+
+async function findByRideRequestIdWithClient(client, rideRequestId) {
+  const { rows } = await client.query('SELECT * FROM fares WHERE ride_request_id = $1', [
+    rideRequestId,
+  ]);
+  return rows[0] || null;
+}
+
 async function findByRideRequestId(rideRequestId) {
   const { rows } = await pool.query('SELECT * FROM fares WHERE ride_request_id = $1', [
     rideRequestId,
@@ -32,4 +47,10 @@ function toPublic(fare) {
   };
 }
 
-module.exports = { createWithClient, findByRideRequestId, toPublic };
+module.exports = {
+  createWithClient,
+  updateDiscountWithClient,
+  findByRideRequestId,
+  findByRideRequestIdWithClient,
+  toPublic,
+};

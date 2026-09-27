@@ -14,6 +14,11 @@ async function findByDriverId(driverId) {
   return rows[0] || null;
 }
 
+async function findByDriverIdWithClient(client, driverId) {
+  const { rows } = await client.query('SELECT * FROM teslas WHERE driver_id = $1', [driverId]);
+  return rows[0] || null;
+}
+
 async function updateStatus(teslaId, status) {
   const { rows } = await pool.query(
     'UPDATE teslas SET status = $1 WHERE id = $2 RETURNING *',
@@ -32,4 +37,10 @@ function toPublicTesla(tesla) {
   };
 }
 
-module.exports = { createWithClient, findByDriverId, updateStatus, toPublicTesla };
+module.exports = {
+  createWithClient,
+  findByDriverId,
+  findByDriverIdWithClient,
+  updateStatus,
+  toPublicTesla,
+};
