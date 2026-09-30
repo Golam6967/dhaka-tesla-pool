@@ -31,7 +31,16 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      # NEXT_PUBLIC_API_URL must be a build arg, not just a runtime
+      # `environment:` var — Next.js inlines NEXT_PUBLIC_* values into the
+      # client bundle at build time, so setting it only at container start
+      # (below) has no effect on an already-built app. Both are kept in sync:
+      # the arg controls what's baked into the bundle, the env var below is
+      # for any server-side code that might also read it at runtime.
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
