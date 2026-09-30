@@ -84,7 +84,7 @@ Legend: ✅ done and verified · ⚠️ partial / needs action · ❌ not done (
 
 ## Testing (§19) — summary
 
-**88 tests across 12 suites, all against a real Postgres instance (no mocked DB).**
+**103 tests across 15 suites, all against a real Postgres instance (no mocked DB).**
 Every explicitly-required test case from §19 has a corresponding test — see the
 tables above for the mapping; nothing on that list is untested.
 

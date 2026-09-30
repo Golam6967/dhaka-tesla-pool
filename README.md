@@ -402,7 +402,7 @@ tesla/
 │   │   ├── middleware/              # requireAuth, requireRole
 │   │   ├── validation/              # Zod schemas
 │   │   └── config/jwt.js
-│   └── tests/                       # 12 suites, 88 tests, real Postgres
+│   └── tests/                       # 15 suites, 103 tests, real Postgres
 └── frontend/
     ├── app/
     │   ├── login/, passenger/, driver/    # pages (App Router)
@@ -444,8 +444,26 @@ No real secrets are committed; only placeholder values.
 | `POSTGRES_USER/PASSWORD/DB/PORT` | docker-compose, backend | Database connection |
 | `DATABASE_URL` | backend | Full Postgres connection string |
 | `JWT_SECRET` | backend | Signs/verifies auth tokens |
+| `CORS_ORIGIN` | backend | Restricts which frontend origin may call the API (defaults to `*`) |
 | `TEST_DATABASE_URL` | backend tests | Isolated DB so tests never touch dev/demo data |
 | `NEXT_PUBLIC_API_URL` | frontend | Where the browser sends API requests |
+
+### Before deploying anywhere other than localhost
+
+Three things from `.env.example` that matter for a real deployment, found during
+a security/logic audit and fixed — see [`docs/ai-usage-notes.md`](docs/ai-usage-notes.md):
+
+1. **Generate a real `JWT_SECRET`** (e.g. `openssl rand -base64 32`). The
+   placeholder value is public in this repo's history — deploying with it
+   unchanged means anyone can forge valid tokens.
+2. **Set `NEXT_PUBLIC_API_URL` to the real, publicly-reachable backend URL
+   *before* building the frontend image.** Next.js inlines `NEXT_PUBLIC_*`
+   variables into the client bundle at build time — `docker-compose.yml`
+   passes this as a build `arg` for exactly this reason. Setting it only in
+   `.env` and restarting an already-built container has no effect; you must
+   rebuild (`docker compose build frontend`) after changing it.
+3. **Set `CORS_ORIGIN` to your deployed frontend's exact origin** (e.g.
+   `https://your-app.example.com`), not the default `*`.
 
 ## Getting started
 
@@ -476,7 +494,7 @@ npm install
 npm test
 ```
 
-12 suites, 88 tests, all against a real Postgres instance (no mocked DB) — including
+15 suites, 103 tests, all against a real Postgres instance (no mocked DB) — including
 the two concurrency tests, which issue genuinely concurrent HTTP requests via
 `Promise.all`.
 
