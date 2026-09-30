@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 
@@ -17,7 +17,12 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
 
+# node:20-alpine already ships an unprivileged 'node' user. Files up to this
+# point were written as root (npm ci/build need it); hand ownership over
+# before switching so 'node' can still write Next.js's runtime cache.
+RUN chown -R node:node /app
 USER node
+
 EXPOSE 3000
 
 CMD ["npm", "start"]
