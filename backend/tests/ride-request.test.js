@@ -105,6 +105,28 @@ describe('ride requests', () => {
       expect(res.status).toBe(400);
     });
 
+    it('rejects seatsRequested above the cap of 4', async () => {
+      const { token } = await signup('passenger');
+
+      const res = await request(app)
+        .post('/api/ride-requests')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ pickupZoneId: banani.id, destinationZoneId: mohakhali.id, seatsRequested: 5 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a ride request whose pickup and destination are the same zone', async () => {
+      const { token } = await signup('passenger');
+
+      const res = await request(app)
+        .post('/api/ride-requests')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ pickupZoneId: banani.id, destinationZoneId: banani.id, seatsRequested: 1 });
+
+      expect(res.status).toBe(400);
+    });
+
     it('rejects a well-formed UUID that does not reference an existing zone', async () => {
       const { token } = await signup('passenger');
       const fakeZoneId = '00000000-0000-0000-0000-000000000000';

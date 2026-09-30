@@ -73,6 +73,12 @@ describe('driver auth', () => {
       expect(res.status).toBe(400);
     });
 
+    it('rejects a Tesla capacity above the cap of 8', async () => {
+      const res = await signupDriver({ teslaCapacity: 9 });
+
+      expect(res.status).toBe(400);
+    });
+
     it('rolls back user creation if the Tesla insert fails at the DB layer (atomic signup)', async () => {
       // Calls the service directly, bypassing Zod, so it's the database's own
       // positive_capacity CHECK constraint that fails inside the transaction —
