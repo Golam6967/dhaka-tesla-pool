@@ -37,7 +37,9 @@ async function insertCorridor(name) {
   return rows[0].id;
 }
 
-async function insertZone({ name, corridorId, lat = null, lng = null }) {
+// Defaults are arbitrary placeholder coordinates — fine for tests that don't
+// care about actual distance (zones.lat/lng are NOT NULL, migration 009).
+async function insertZone({ name, corridorId, lat = 23.7936, lng = 90.4043 }) {
   const { rows } = await testPool.query(
     `INSERT INTO zones (name, corridor_id, lat, lng) VALUES ($1, $2, $3, $4) RETURNING id`,
     [name, corridorId, lat, lng]
