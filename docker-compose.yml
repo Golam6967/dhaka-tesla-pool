@@ -24,6 +24,7 @@ services:
       PORT: ${PORT}
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN}
     ports:
       - "${PORT}:4000"
     depends_on:
