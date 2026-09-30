@@ -82,7 +82,7 @@ async function performJoin(client, { rideRequestId, driverId }) {
     event: 'member_joined',
   });
 
-  await rideRequestRepository.markMatchedWithClient(client, rideRequest.id, poolRow.id);
+  const matchedRideRequest = await rideRequestRepository.markMatchedWithClient(client, rideRequest.id, poolRow.id);
   await rideStatusHistoryRepository.insertWithClient(client, {
     rideRequestId: rideRequest.id,
     fromStatus: rideRequest.status,
@@ -126,7 +126,7 @@ async function performJoin(client, { rideRequestId, driverId }) {
 
   return {
     pool: poolRepository.toPublic({ ...poolRow, seats_occupied: newSeatsOccupied }),
-    rideRequest: rideRequestRepository.toPublic({ ...rideRequest, status: 'matched', pool_id: poolRow.id }),
+    rideRequest: rideRequestRepository.toPublic(matchedRideRequest),
     fare: fareRepository.toPublic(currentFare),
   };
 }
