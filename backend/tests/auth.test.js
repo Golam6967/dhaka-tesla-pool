@@ -39,6 +39,40 @@ describe('passenger auth', () => {
       expect(payload.sub).toBe(res.body.user.id);
     });
 
+    it('rejects a non-numeric "phone number" (regression: previously any 6-20 char string was accepted)', async () => {
+      const res = await request(app).post('/api/passengers/signup').send({
+        name: 'Nusrat',
+        phone: 'abcdef',
+        password: 'nusrat-secret',
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a too-short numeric phone number', async () => {
+      const res = await request(app).post('/api/passengers/signup').send({
+        name: 'Nusrat',
+        phone: '12345',
+        password: 'nusrat-secret',
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('normalizes spaces/dashes so the same number logs in the way it was stored', async () => {
+      await request(app).post('/api/passengers/signup').send({
+        name: 'Nusrat',
+        phone: '+880 170-0000002',
+        password: 'nusrat-secret',
+      });
+
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ phone: '+8801700000002', password: 'nusrat-secret' });
+
+      expect(res.status).toBe(200);
+    });
+
     it('rejects signup with a phone number that is already registered', async () => {
       await request(app).post('/api/passengers/signup').send({
         name: 'Rafiq',
@@ -53,6 +87,22 @@ describe('passenger auth', () => {
       });
 
       expect(res.status).toBe(409);
+    });
+
+    it('rejects concurrent signups with the same phone number cleanly, not with a raw DB error', async () => {
+      const attempt = (password) =>
+        request(app).post('/api/passengers/signup').send({
+          name: 'Rafiq',
+          phone: '+8801700000003',
+          password,
+        });
+
+      const [first, second] = await Promise.all([attempt('rafiq-secret'), attempt('rafiq-secret-2')]);
+      const statuses = [first.status, second.status].sort();
+
+      expect(statuses).toEqual([201, 409]);
+      const loser = first.status === 409 ? first : second;
+      expect(loser.body.error).toMatch(/already exists/i);
     });
 
     it('rejects signup with a password shorter than 6 characters', async () => {

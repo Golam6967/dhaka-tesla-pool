@@ -25,6 +25,9 @@ async function createRideRequest({ passengerId, pickupZoneId, destinationZoneId,
   if (!destinationZone) {
     throw new ValidationError('destinationZoneId does not reference an existing zone');
   }
+  if (pickupZoneId === destinationZoneId) {
+    throw new ValidationError('pickupZoneId and destinationZoneId cannot be the same zone');
+  }
 
   const estimate = fareService.calculateFare({ pickupZone, destinationZone, isPooled: false });
 

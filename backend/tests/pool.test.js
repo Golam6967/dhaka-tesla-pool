@@ -94,6 +94,9 @@ describe('pool matching and concurrency', () => {
     expect(res.status).toBe(200);
     expect(res.body.pool.seatsOccupied).toBe(1);
     expect(res.body.rideRequest.status).toBe('matched');
+    // Regression: the response previously reconstructed rideRequest from the
+    // pre-update row, so matchedAt stayed null even though the DB set it.
+    expect(res.body.rideRequest.matchedAt).not.toBeNull();
     expect(res.body.fare.poolDiscountPaisa).toBe(0);
     expect(res.body.fare.totalFarePaisa).toBe(9000);
   });

@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { pool } = require('../db/pool');
+const { pool: dbPool } = require('../db/pool');
 const userRepository = require('../repositories/user.repository');
 const teslaRepository = require('../repositories/tesla.repository');
 const poolRepository = require('../repositories/pool.repository');
@@ -9,6 +9,7 @@ const zoneRepository = require('../repositories/zone.repository');
 const fareRepository = require('../repositories/fare.repository');
 const { signToken } = require('../config/jwt');
 const { ConflictError, NotFoundError } = require('../errors');
+const { isUniqueViolation } = require('../db/pgErrors');
 
 const SALT_ROUNDS = 10;
 
@@ -20,7 +21,7 @@ async function signup({ name, phone, password, teslaLabel, teslaCapacity }) {
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const client = await pool.connect();
+  const client = await dbPool.connect();
   try {
     await client.query('BEGIN');
     const user = await userRepository.createWithClient(client, {
@@ -43,6 +44,13 @@ async function signup({ name, phone, password, teslaLabel, teslaCapacity }) {
     };
   } catch (err) {
     await client.query('ROLLBACK');
+    // Same race as auth.service.js's signup: the pre-check above can't see
+    // a concurrent signup with the same phone. Convert the database's own
+    // constraint violation into the same clean 409 instead of a raw
+    // Postgres error reaching the client.
+    if (isUniqueViolation(err, 'users_phone_key')) {
+      throw new ConflictError('An account with this phone number already exists');
+    }
     throw err;
   } finally {
     client.release();
@@ -74,7 +82,7 @@ async function listAvailableRequests(driverId) {
 
   let poolProfile = null;
   if (existingPool) {
-    const members = await poolMemberRepository.findMembersWithRideDetails(pool, existingPool.id);
+    const members = await poolMemberRepository.findMembersWithRideDetails(dbPool, existingPool.id);
     if (members.length > 0) {
       const destinationZone = await zoneRepository.findById(members[0].destination_zone_id);
       poolProfile = {
@@ -106,7 +114,7 @@ async function listAvailableRequests(driverId) {
 }
 
 async function loadPoolWithMembers(poolRow) {
-  const memberRows = await poolMemberRepository.findMembersWithRideDetails(pool, poolRow.id);
+  const memberRows = await poolMemberRepository.findMembersWithRideDetails(dbPool, poolRow.id);
   const members = await Promise.all(
     memberRows.map(async (member) => {
       const rideRequest = await rideRequestRepository.findById(member.ride_request_id);
