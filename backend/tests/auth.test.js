@@ -55,6 +55,22 @@ describe('passenger auth', () => {
       expect(res.status).toBe(409);
     });
 
+    it('rejects concurrent signups with the same phone number cleanly, not with a raw DB error', async () => {
+      const attempt = (password) =>
+        request(app).post('/api/passengers/signup').send({
+          name: 'Rafiq',
+          phone: '+8801700000003',
+          password,
+        });
+
+      const [first, second] = await Promise.all([attempt('rafiq-secret'), attempt('rafiq-secret-2')]);
+      const statuses = [first.status, second.status].sort();
+
+      expect(statuses).toEqual([201, 409]);
+      const loser = first.status === 409 ? first : second;
+      expect(loser.body.error).toMatch(/already exists/i);
+    });
+
     it('rejects signup with a password shorter than 6 characters', async () => {
       const res = await request(app).post('/api/passengers/signup').send({
         name: 'Shirin',

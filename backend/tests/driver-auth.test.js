@@ -58,6 +58,15 @@ describe('driver auth', () => {
       expect(res.status).toBe(409);
     });
 
+    it('rejects concurrent signups with the same phone number cleanly, not with a raw DB error', async () => {
+      const [first, second] = await Promise.all([signupDriver(), signupDriver({ teslaLabel: 'Volt' })]);
+      const statuses = [first.status, second.status].sort();
+
+      expect(statuses).toEqual([201, 409]);
+      const loser = first.status === 409 ? first : second;
+      expect(loser.body.error).toMatch(/already exists/i);
+    });
+
     it('rejects signup with a non-positive Tesla capacity', async () => {
       const res = await signupDriver({ teslaCapacity: 0 });
 
