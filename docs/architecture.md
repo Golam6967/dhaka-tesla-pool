@@ -211,6 +211,12 @@ ALTER TABLE ride_requests ADD CONSTRAINT positive_seats_requested
 -- A Tesla must have a real, positive seat capacity
 ALTER TABLE teslas ADD CONSTRAINT positive_capacity
   CHECK (capacity > 0);
+
+-- Fare calculation depends on real coordinates (Section 3's haversine
+-- distance) — a NULL here previously coerced to 0 and silently computed
+-- distance from the equator/prime-meridian instead of failing loudly.
+ALTER TABLE zones ALTER COLUMN lat SET NOT NULL;
+ALTER TABLE zones ALTER COLUMN lng SET NOT NULL;
 ```
 
 `pool_members.ride_request_id` is `UNIQUE` (see table definition above) — a ride request can
