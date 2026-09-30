@@ -2,10 +2,11 @@ const { Router } = require('express');
 const driverController = require('../controllers/driver.controller');
 const { requireAuth } = require('../middleware/requireAuth');
 const { requireRole } = require('../middleware/requireRole');
+const { signupLimiter } = require('../middleware/rateLimit');
 
 const router = Router();
 
-router.post('/signup', driverController.signup);
+router.post('/signup', signupLimiter, driverController.signup);
 router.patch('/me/status', requireAuth, requireRole('driver'), driverController.setStatus);
 router.get(
   '/me/available-requests',
